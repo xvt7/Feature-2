@@ -1,33 +1,110 @@
-# This is a basic workflow to help you get started with Actions
+name: 'OAMD-Pipeline'
 
-name: CI
+# TODO:
+# Add variables for when it runs manually
+# BUILD default False, DEPLOY default False, ENVIRONMENT default CI, VERSION
 
-# Controls when the workflow will run
+# Job: build-ci-frontend
+# Trigger: Pull Request
+# Steps:
+  # NPM setup
+  # NPM ci
+  # NPM run build
+  # NPM test
+  # Or setup NPM and run dockerfile if those are already included
+  
+# Job: build-image-backend
+# Trigger: Pull Request
+# Steps:
+  # .NET setup
+  # .NET nuget restore
+  # .NET publish
+  # .NET test
+  # Or setup .NET and run dockerfile if those are already included
+  
+# Job: jira-feedback
+# Trigger: When pull request is merged into develop
+# Steps:
+  # If branch name contains a JIRA ticket, comment that branch was successfully merged into develop
+  # Else continue pipeline, make sure this step does not end pipeline on failure
+  
+# Job: build-image-frontend
+# Trigger: Manual trigger
+# Steps:
+  # NPM setup
+  # Build dockerfile and tag with VERSION variable
+  # Push to ImageHub
+  
+# Job: build-image-backend
+# Trigger: Manual trigger
+# Steps:
+  # .NET setup
+  # Build dockerfile and tag with VERSION variable
+  # Push to ImageHub
+  
+# Job: trigger-downstream-terraform
+# Trigger: Manual trigger
+# Steps:
+  # Start oamd-infra-terraform repository pipeline
+  # should pass ENVIRONEMT, VERSION variables along
+
+# SonarQube, Fortify, Trivy, NeuVector
+
+
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+  push:
+    branches:
+      - ryantest
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+   build-ci-frontend:
+    runs-on: [self-hosted, edso-node-builder]
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+ #- name: Setup node
+      #  uses: actions/setup-node@v4
+      #  with:
+      #    node-version: 16.??.x
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+         node-version: 16.??.x
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+         
+      #- name: NPM Install
+      #  run: |
+      #    cd react-app
+      #    npm ci
+
+      
+      - name: NPM Install
+        run: |
+          cd react-app
+          npm ci
+          
+#- name: NPM Build    
+      - name: NPM Build
+        run: | 
+          cd react-app
+          npm run build
+          
+#- name: NPM Test
+      - name: NPM Test
+        run: | 
+          cd react-app
+          npm run test
+ # Push and Build react-app         
+      - name: podman login
+        run: podman login imagehub.cdc.gov:6989 -u "${{ secrets.DEV_CICD_SVC }}" -p "${{ secrets.DEV_CICD_SVC}}"
+        
+      - name: build image
+        working-directory: react-app
+        run: podman build . -t imagehub.cdc.gov:6989/docker-dev2/react-app
+        
+      - name: push image
+        working-directory: react-app
+        run: podman push imagehub.cdc.gov:6989/docker-dev2/react-app
 
       # Runs a set of commands using the runners shell
       - name: Run a multi-line script

@@ -1,0 +1,32 @@
+name: Push Image to ImageHub
+
+on:
+  workflow_dispatch:
+
+jobs:
+  push-image:
+    runs-on: [self-hosted, edso-node-builder]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: v20.13.1
+
+      - name: NPM Install
+        run: |
+          cd bbtools
+          npm ci
+
+      - name: podman login
+        run: podman login imagehub.cdc.gov:6989 -u "${{ secrets.DEV_CICD_SVC }}" -p "${{ secrets.DEV_CICD_SVC}}"
+        
+      - name: build image
+        working-directory: bbtools
+        run: podman build . -t imagehub.cdc.gov:6989/docker-dev2/oamd/bbtools
+        
+      - name: push image
+        working-directory: bbtools
+        run: podman push imagehub.cdc.gov:6989/docker-dev2/oamd/bbtools

@@ -1,0 +1,48 @@
+name: Fortify SCA 
+
+on: 
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      Repository:
+        description: 'Repository_Name'     
+        required: true
+        default: oamd-app-publishing-service
+        type: string
+        
+      branch:
+        description: 'Branch'     
+        required: true
+        type: string
+        
+        
+jobs:
+  Fortify_scan:
+    runs-on: [self-hosted, edso-fortify]
+    steps:
+     - name: Checkout
+       uses: actions/checkout@v4
+       with:
+         path: main
+
+     - name: Checkout private tools
+       uses: actions/checkout@v4
+       with:
+          repository: ${{github.event.inputs.Repository}}
+          token: ${{ secrets.DEV_CICD_SVC }} # `DEV_CICD_SVC` is a secret that contains your PAT
+          path: main
+         
+     - name: Initialize Fortify Project ingest
+       run: sourceanalyzer -b ${{github.event.inputs.Repository}} -clean
+     
+     - name: Build Session ingest
+       run: sourceanalyzer -b ${{github.event.inputs.Repository}} msbuild .
+   
+     - name: Run Fortify SCA ingest
+       run: sourceanalyzer -b ${{github.event.inputs.Repository}} -scan -f ${{github.event.inputs.Repository}}.fpr
+     
+     - name: Copy FPR to Input
+       run: cp ${{github.event.inputs.Repository}}.fpr input.fpr
+    
+     - name: Upload ${{github.event.inputs.Repository}} scan results as an artifact
+       uses: actions/upload-artifact@v2
